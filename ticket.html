@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jev buildathon · ticket</title>
+<!-- fonts are bundled in ./fonts so renders never depend on the network -->
+<style>
+@font-face{font-family:"FP Pixel";src:url("src/fonts/PixelifySans.ttf") format("truetype");font-weight:400 700;font-display:block}
+@font-face{font-family:"FP Mono";src:url("src/fonts/JetBrainsMono.ttf") format("truetype");font-weight:100 800;font-display:block}
+</style>
+<!-- browser preview only: live QR. render.py injects its own QR so this is never needed for exports -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{--mono:"FP Mono","JetBrains Mono",ui-monospace,Menlo,monospace;--pix:"FP Pixel","Pixelify Sans",var(--mono)}
+.paper{--paper:#ecebe8;--ink:#0e0e12;--ink-2:#3b3f46;--ink-3:#6b7079;--accent:#d8436b;--face:#ecebe8}
+.dark {--paper:#111116;--ink:#ecebe8;--ink-2:#a7adb6;--ink-3:#6f7783;--accent:#e4587d;--face:#66d1b5}
+*{box-sizing:border-box}
+html,body{margin:0;background:#050507;font-family:var(--mono);-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+.stage{padding:44px;width:max-content;background:#050507}
+body:not(.shot) .stage{margin:64px auto 0}
+html.transparent,html.transparent body,html.transparent .stage{background:transparent}
+
+/* ---------- die-cut ticket: 1180 × 480 ---------- */
+.tk{--w:1180px;--h:480px;--perf:944px;position:relative;width:var(--w);height:var(--h);background:var(--paper);color:var(--ink);
+  -webkit-mask:
+    radial-gradient(circle 16px at 0 0,#0000 98%,#000),radial-gradient(circle 16px at 100% 0,#0000 98%,#000),
+    radial-gradient(circle 16px at 0 100%,#0000 98%,#000),radial-gradient(circle 16px at 100% 100%,#0000 98%,#000),
+    radial-gradient(circle 17px at var(--perf) 0,#0000 98%,#000),radial-gradient(circle 17px at var(--perf) 100%,#0000 98%,#000);
+  -webkit-mask-composite:source-in;mask-composite:intersect}
+.tk::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.dark .tk::after{mix-blend-mode:screen;opacity:.35;filter:invert(1)}
+.perf{position:absolute;top:26px;bottom:26px;left:var(--perf);border-left:2px dotted var(--ink);opacity:.55}
+.box{position:absolute;top:22px;bottom:22px}
+
+/* ---------- art panel ---------- */
+.art{left:24px;width:330px;border:1.5px solid var(--ink);border-radius:12px;overflow:hidden;background:var(--paper)}
+.art canvas{display:block;width:100%;height:100%}
+.art .cap{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;padding:7px 14px;background:var(--ink);color:var(--paper);font-size:9.5px;letter-spacing:.24em}
+
+/* ---------- main ---------- */
+.main{left:382px;width:538px;display:flex;flex-direction:column}
+.pres{display:flex;justify-content:space-between;align-items:center;padding-bottom:9px;border-bottom:1.5px solid var(--ink);font-size:11px;font-weight:700;letter-spacing:.14em}
+.pres .x{color:var(--accent)}
+.wm{margin-top:18px;font:700 76px/.9 var(--pix);letter-spacing:-.035em;white-space:nowrap}
+.intro{margin:14px 0 0;font-size:14.5px;line-height:1.55;color:var(--ink)}
+.more{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--ink-3)}
+.facts{margin-top:auto;display:grid;grid-template-columns:1.05fr .95fr 1.1fr;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
+.facts div{padding:13px 16px 14px;font-size:10.5px;letter-spacing:.2em;color:var(--ink-3)}
+.facts div:first-child{padding-left:0}
+.facts div+div{border-left:1px solid var(--ink)}
+.facts b{display:block;margin-top:7px;font-size:17px;letter-spacing:-.01em;font-weight:500;color:var(--ink);line-height:1.25;white-space:nowrap}
+.facts small{display:block;margin-top:3px;font-size:12px;letter-spacing:0;color:var(--ink-3)}
+.foot{display:flex;justify-content:space-between;align-items:flex-end;padding-top:12px}
+.lbl{font-size:9.5px;letter-spacing:.22em;color:var(--ink-3)}
+.nm{font:700 32px/1 var(--pix);letter-spacing:-.015em;margin-top:5px;white-space:nowrap;height:32px;display:flex;align-items:flex-end}
+.admit{font:700 24px/1 var(--pix);letter-spacing:.02em;white-space:nowrap}
+
+/* ---------- stub: ticket number + QR only (logo slot reserved at the bottom) ---------- */
+.stub{left:calc(var(--perf) + 18px);right:18px;display:flex;flex-direction:column;align-items:center;padding:30px 0 0}
+.stub .no{font:700 40px/1 var(--pix);letter-spacing:-.02em;white-space:nowrap}
+.stub .qr{margin-top:26px;width:156px;height:156px}
+.qr svg{display:block;width:100%;height:100%}
+.qr svg rect[fill="#ffffff"]{fill:transparent}
+.qr svg rect[fill="#000000"],.qr svg path{fill:var(--ink)}
+.stub .logo-slot{margin:auto 0 -2px;height:64px;width:160px;display:flex;align-items:flex-end;justify-content:center}
+.stub .logo-slot img{max-width:100%;max-height:100%;object-fit:contain}
+.paper .logo-slot .on-dark,.dark .logo-slot .on-paper{display:none}
+
+.sw{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;padding:4px;background:#111116;border:1px solid #2b2b34;z-index:9}
+.sw button{font:500 12px var(--mono);height:32px;padding:0 14px;border:0;background:transparent;color:#6f7783;cursor:pointer}
+.sw button[aria-pressed=true]{background:#1d1d24;color:#ecebe8}
+body.shot .sw{display:none}
+</style>
+</head>
+<body>
+<div class="sw" role="group" aria-label="theme"><button type="button" data-t="paper">paper</button><button type="button" data-t="dark">dark</button></div>
+
+<div class="stage paper" id="stage">
+<div class="tk" id="ticket">
+  <div class="box art">
+    <canvas id="art"></canvas>
+    <div class="cap"><span>BUILD</span><span>JUDGE</span><span>DEMO</span></div>
+  </div>
+
+  <div class="box main">
+    <div class="pres"><span>FAILPROOF AI <span class="x">×</span> LOSSFUNK</span><span>PRESENT</span></div>
+    <div class="wm" id="wm">jev buildathon</div>
+    <p class="intro">ship an agent that does the work. let jev evals and policies judge every move it makes.</p>
+    <p class="more">bring an agent that does real work: support, payments, ops, coding or sales. solo or in a team, three and a half hours, judged live.</p>
+    <div class="facts">
+      <div>DATE<b>sun 27 sep</b><small>2026</small></div>
+      <div>TIME<b>3:00 – 6:30</b><small>pm ist</small></div>
+      <div>VENUE<b>lossfunk</b><small>indiranagar, bengaluru</small></div>
+    </div>
+    <div class="foot">
+      <div><div class="lbl">ISSUED TO</div><div class="nm" data-f="name">arjun mehta</div></div>
+      <div class="admit">ADMIT ONE</div>
+    </div>
+  </div>
+
+  <div class="perf"></div>
+
+  <div class="box stub">
+    <div class="no">#<span data-f="no">0042</span></div>
+    <div class="qr" data-qr></div>
+    <div class="logo-slot"><img class="on-paper" src="src/brand/failproofai-wordmark-ink.png" alt="failproof ai"><img class="on-dark" src="src/brand/failproofai-wordmark.png" alt="failproof ai"></div>
+  </div>
+</div>
+</div>
+
+<script>
+/* -------- inputs (query string) --------
+   name   attendee name (lowercased on the ticket)
+   no     ticket number (zero-padded to 4)
+   code   what the QR encodes (default: the event page)
+   theme  paper | dark
+   shot   1 = hide UI chrome for rendering;  bg=transparent for a transparent stage */
+const P=new URLSearchParams(location.search);
+const name=(P.get('name')||'arjun mehta').trim().toLowerCase();
+const no=String(P.get('no')||'42').replace(/\D/g,'').padStart(4,'0');
+const code=P.get('code')||'https://befailproof.ai/events/jev-buildathon/';
+if(P.get('shot'))document.body.classList.add('shot');
+if(P.get('bg')==='transparent')document.documentElement.classList.add('transparent');
+document.querySelectorAll('[data-f="name"]').forEach(e=>e.textContent=name);
+document.querySelectorAll('[data-f="no"]').forEach(e=>e.textContent=no);
+function browserQR(){document.querySelectorAll('[data-qr]').forEach(el=>{
+  if(el.dataset.injected)return;
+  if(window.qrcode){const q=qrcode(0,'M');q.addData(code);q.make();el.innerHTML=q.createSvgTag({cellSize:4,margin:0,scalable:true});}
+  else el.innerHTML='<div style="width:100%;height:100%;border:1px dashed currentColor;display:flex;align-items:center;justify-content:center;font-size:9px">QR</div>';});}
+function fit(sel,max,maxW,min){document.querySelectorAll(sel).forEach(e=>{e.style.fontSize='';let s=max;while(e.scrollWidth>maxW&&s>min){s--;e.style.fontSize=s+'px';}});}
+
+const MON=["........AA..........","........AA..........","..FFFFFFFFFFFFFFFF..","..FSSSSSSSSSSSSSSF..","..FSSSSSSSSSSSSSSF..","..FSSSEESSSSEESSSF..","..FSSSEESSSSEESSSF..","..FSSSSSSSSSSSSSSF..","..FSSSMSSSSSSMSSSF..","..FSSSSMMMMMMSSSSF..","..FSSSSSSSSSSSSSSF..","..FFFFFFFFFFFFFFFF..","........FFFF........","......FFFFFFFF......"];
+const SPR={
+ heart:[".XX.XX.","XXXXXXX","XXXXXXX",".XXXXX.","..XXX..","...X..."],
+ spark:["...X...","...X...","..XXX..","XXXXXXX","..XXX..","...X...","...X..."],
+ twinkle:[".X.","XXX",".X."],
+ cursor:["X......","XX.....","XOX....","XOOX...","XOOOX..","XOOOOX.","XOOXXXX","XOX....","XX.....","X......"],
+ bubble:[".XXXXXXXXX.","XOOOOOOOOOX","XOOOOOOOXOX","XOOOOOOXOOX","XOXOOOXOOOX","XOOXOXOOOOX","XOOOXOOOOOX",".XXXXXXXXX.","..XX.......",".X........."]
+};
+function sprite(ctx,m,x,y,s,col,fill,halo){
+  if(halo){ctx.fillStyle=halo;m.forEach((r,j)=>[...r].forEach((c,i)=>{if(c!=='.')ctx.fillRect(x+i*s-s*.6,y+j*s-s*.6,s*2.2,s*2.2);}));}
+  m.forEach((r,j)=>[...r].forEach((c,i)=>{if(c==='X'){ctx.fillStyle=col;ctx.fillRect(x+i*s,y+j*s,s,s);}else if(c==='O'&&fill){ctx.fillStyle=fill;ctx.fillRect(x+i*s,y+j*s,s,s);}}));
+}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+
+/* The scene is composed in a fixed 660-unit-wide space, then drawn at the canvas's real
+   pixel size (css size × devicePixelRatio) so halftone dots and sprites stay pin-sharp at any export scale. */
+function drawArt(){
+  const cv=document.getElementById('art'),rect=cv.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  cv.width=Math.round(rect.width*dpr);cv.height=Math.round(rect.height*dpr);
+  const W=660,H=Math.round(660*rect.height/rect.width),k=cv.width/W;
+  const ctx=cv.getContext('2d');ctx.setTransform(k,0,0,k,0,0);ctx.imageSmoothingEnabled=false;
+  const o=document.createElement('canvas');o.width=W;o.height=H;const g=o.getContext('2d');const R=rng(31);
+  g.fillStyle='#fff';g.fillRect(0,0,W,H);
+  const hz=H*.66;
+  let sky=g.createLinearGradient(0,0,0,hz);sky.addColorStop(0,'rgba(0,0,0,.6)');sky.addColorStop(1,'rgba(0,0,0,.05)');g.fillStyle=sky;g.fillRect(0,0,W,hz);
+  for(let i=0;i<36;i++){const x=R()*W,y=R()*hz*.9,r=40+R()*90;const c=g.createRadialGradient(x,y,0,x,y,r);c.addColorStop(0,'rgba(255,255,255,.72)');c.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=c;g.beginPath();g.arc(x,y,r,0,7);g.fill();}
+  let fl=g.createLinearGradient(0,hz,0,H);fl.addColorStop(0,'rgba(0,0,0,.25)');fl.addColorStop(1,'rgba(0,0,0,.85)');g.fillStyle=fl;g.fillRect(0,hz,W,H-hz);
+  g.strokeStyle='rgba(0,0,0,.95)';g.lineWidth=3;const vx=W/2;
+  for(let i=-10;i<=10;i++){g.beginPath();g.moveTo(vx+i*14,hz);g.lineTo(vx+i*150,H);g.stroke();}
+  for(let j=1;j<9;j++){const y=hz+(H-hz)*Math.pow(j/9,1.9);g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();}
+  const px=17,mw=20*px,mh=14*px,mx=Math.round(W/2-mw/2+px/2),my=Math.round(hz*.5-mh/2+10);
+  let sh=g.createRadialGradient(W/2,hz+60,0,W/2,hz+60,190);sh.addColorStop(0,'rgba(0,0,0,.9)');sh.addColorStop(1,'rgba(0,0,0,0)');g.fillStyle=sh;g.beginPath();g.ellipse(W/2,hz+60,190,32,0,0,7);g.fill();
+  function file(cx,cy,w,h,rot){g.save();g.translate(cx,cy);g.rotate(rot);
+    g.fillStyle='rgba(0,0,0,.92)';g.fillRect(-w/2,-h/2,w,h);g.fillRect(-w/2,-h/2-10,w*.38,12);
+    g.fillStyle='#fff';g.fillRect(-w/2+6,-h/2+8,w-12,h-14);
+    g.fillStyle='rgba(0,0,0,.9)';for(let i=0;i<3;i++)g.fillRect(-w/2+14,-h/2+18+i*13,(w-34)*(.45+R()*.5),6);g.restore();}
+  const fw=118,fh=76;
+  file(W*.19,H*.1,fw,fh,-.08);file(W*.81,H*.1,fw,fh,.07);file(W*.15,H*.53,fw,fh,.06);file(W*.85,H*.53,fw,fh,-.07);
+  MON.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==='.')return;let a=c==='F'?1:c==='S'?(y%2?.78:.6):c==='A'?.95:0;g.fillStyle=(c==='E'||c==='M')?'#fff':`rgba(0,0,0,${a})`;g.fillRect(mx+x*px,my+y*px,px,px);}));
+  const img=g.getImageData(0,0,W,H).data;const st=document.getElementById('stage'),cs=getComputedStyle(st),dark=st.classList.contains('dark');
+  const PAPER=cs.getPropertyValue('--paper').trim(),INK=cs.getPropertyValue('--ink').trim(),ACC=cs.getPropertyValue('--accent').trim(),FACE=cs.getPropertyValue('--face').trim();
+  ctx.fillStyle=PAPER;ctx.fillRect(0,0,W,H);ctx.fillStyle=INK;
+  const s=7;
+  for(let y=0;y<H;y+=s)for(let x=(y/s)%2?s/2:0;x<W;x+=s){const i=((y|0)*W+(x|0))*4;let d=1-img[i]/255;if(dark)d=(1-d)*.5;if(d<.04)continue;ctx.beginPath();ctx.arc(x,y,s*.66*Math.sqrt(d),0,7);ctx.fill();}
+  ctx.fillStyle=ACC;ctx.fillRect(mx+8*px,my,2*px,2*px);
+  ctx.fillStyle=FACE;MON.forEach((r,y)=>[...r].forEach((c,x)=>{if(c==='E'||c==='M')ctx.fillRect(mx+x*px,my+y*px,px,px);}));
+  sprite(ctx,SPR.heart,mx+12*px,my-52,6,ACC,null,PAPER);
+  sprite(ctx,SPR.bubble,mx+18*px+6,my+2,5,INK,PAPER,null);
+  sprite(ctx,SPR.spark,W*.46,H*.06,5,ACC,null,PAPER);
+  sprite(ctx,SPR.spark,W*.06,H*.33,4,INK,null,PAPER);
+  sprite(ctx,SPR.twinkle,W*.9,H*.3,6,ACC,null,PAPER);
+  sprite(ctx,SPR.twinkle,W*.62,H*.02+14,5,INK,null,PAPER);
+  sprite(ctx,SPR.cursor,W*.85+24,H*.53+12,5,INK,PAPER,null);
+}
+
+let T=(P.get('theme')==='dark'?'dark':'paper');
+function apply(){
+  document.getElementById('stage').className='stage '+T;
+  document.querySelectorAll('[data-t]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===T));
+  fit('#wm',76,538,50);fit('.nm',32,330,16);browserQR();drawArt();
+}
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{T=b.dataset.t;apply();});
+// render.py waits for window.__ready before capturing
+Promise.all([document.fonts.load('700 76px "FP Pixel"'),document.fonts.load('500 14px "FP Mono"'),document.fonts.load('700 11px "FP Mono"'),document.fonts.ready,...[...document.images].map(i=>i.decode())])
+  .then(apply).then(()=>{window.__ready=true;});
+</script>
+</body>
+</html>
