@@ -57,15 +57,17 @@ html.transparent,html.transparent body,html.transparent .stage{background:transp
 .nm{font:700 32px/1 var(--pix);letter-spacing:-.015em;margin-top:5px;white-space:nowrap;height:32px;display:flex;align-items:flex-end}
 .admit{font:700 24px/1 var(--pix);letter-spacing:.02em;white-space:nowrap}
 
-/* ---------- stub: ticket number + QR only (logo slot reserved at the bottom) ---------- */
-.stub{left:calc(var(--perf) + 18px);right:18px;display:flex;flex-direction:column;align-items:center;padding:30px 0 0}
-.stub .no{font:700 40px/1 var(--pix);letter-spacing:-.02em;white-space:nowrap}
-.stub .qr{margin-top:26px;width:156px;height:156px}
+/* ---------- stub: ticket number, QR, wordmark ---------- */
+/* equal 1fr rows above and below keep the QR at the exact vertical centre */
+.stub{left:calc(var(--perf) + 18px);right:18px;display:grid;grid-template-rows:1fr auto 1fr;justify-items:center;row-gap:24px}
+/* -7.7px trims the pixel font's empty descent, so the number→QR gap matches QR→logo */
+.stub .no{align-self:end;margin-bottom:-7.7px;font:700 40px/1 var(--pix);letter-spacing:-.02em;white-space:nowrap}
+.stub .qr{width:156px;height:156px}
 .qr svg{display:block;width:100%;height:100%}
 .qr svg rect[fill="#ffffff"]{fill:transparent}
 .qr svg rect[fill="#000000"],.qr svg path{fill:var(--ink)}
-.stub .logo-slot{margin:auto 0 -2px;height:64px;width:160px;display:flex;align-items:flex-end;justify-content:center}
-.stub .logo-slot img{max-width:100%;max-height:100%;object-fit:contain}
+.stub .logo-slot{align-self:start;width:160px}
+.stub .logo-slot img{display:block;width:100%;height:auto}
 .paper .logo-slot .on-dark,.dark .logo-slot .on-paper{display:none}
 
 .sw{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;padding:4px;background:#111116;border:1px solid #2b2b34;z-index:9}
