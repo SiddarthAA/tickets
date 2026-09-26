@@ -6,13 +6,14 @@
 <title>jev buildathon · ticket</title>
 <!-- fonts are bundled in ./fonts so renders never depend on the network -->
 <style>
-@font-face{font-family:"FP Pixel";src:url("src/fonts/PixelifySans.ttf") format("truetype");font-weight:400 700;font-display:block}
+/* Architype Stedelijk: the failproofai landing hero face. Licensed, so it is NOT in git: render.py fetches it into src/fonts/licensed/ */
+@font-face{font-family:"FP Display";src:url("src/fonts/licensed/Architype-Stedelijk.woff2") format("woff2");font-weight:400;font-display:block}
 @font-face{font-family:"FP Mono";src:url("src/fonts/JetBrainsMono.ttf") format("truetype");font-weight:100 800;font-display:block}
 </style>
 <!-- browser preview only: live QR. render.py injects its own QR so this is never needed for exports -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <style>
-:root{--mono:"FP Mono","JetBrains Mono",ui-monospace,Menlo,monospace;--pix:"FP Pixel","Pixelify Sans",var(--mono)}
+:root{--mono:"FP Mono","JetBrains Mono",ui-monospace,Menlo,monospace;--pix:"FP Display",var(--mono)}
 .paper{--paper:#ecebe8;--ink:#0e0e12;--ink-2:#3b3f46;--ink-3:#6b7079;--accent:#d8436b;--face:#ecebe8}
 .dark {--paper:#111116;--ink:#ecebe8;--ink-2:#a7adb6;--ink-3:#6f7783;--accent:#e4587d;--face:#66d1b5}
 *{box-sizing:border-box}
@@ -43,8 +44,8 @@ html.transparent,html.transparent body,html.transparent .stage{background:transp
 .main{left:382px;width:538px;display:flex;flex-direction:column}
 .pres{display:flex;justify-content:space-between;align-items:center;padding-bottom:9px;border-bottom:1.5px solid var(--ink);font-size:11px;font-weight:700;letter-spacing:.14em}
 .pres .x{color:var(--accent)}
-.wm{margin-top:18px;font:700 76px/.9 var(--pix);letter-spacing:-.035em;white-space:nowrap}
-.intro{margin:14px 0 0;font-size:14.5px;line-height:1.55;color:var(--ink)}
+.wm{margin-top:18px;font:400 76px/.9 var(--pix);letter-spacing:.08em;white-space:nowrap}
+.intro{margin:24px 0 0;font-size:14.5px;line-height:1.55;color:var(--ink)}
 .more{margin:8px 0 0;font-size:12px;line-height:1.6;color:var(--ink-3)}
 .facts{margin-top:auto;display:grid;grid-template-columns:1.05fr .95fr 1.1fr;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink)}
 .facts div{padding:13px 16px 14px;font-size:10.5px;letter-spacing:.2em;color:var(--ink-3)}
@@ -54,14 +55,16 @@ html.transparent,html.transparent body,html.transparent .stage{background:transp
 .facts small{display:block;margin-top:3px;font-size:12px;letter-spacing:0;color:var(--ink-3)}
 .foot{display:flex;justify-content:space-between;align-items:flex-end;padding-top:12px}
 .lbl{font-size:9.5px;letter-spacing:.22em;color:var(--ink-3)}
-.nm{font:700 32px/1 var(--pix);letter-spacing:-.015em;margin-top:5px;white-space:nowrap;height:32px;display:flex;align-items:flex-end}
-.admit{font:700 24px/1 var(--pix);letter-spacing:.02em;white-space:nowrap}
+.nm{font:400 32px/1 var(--pix);letter-spacing:.08em;margin-top:5px;white-space:nowrap;height:32px;display:flex;align-items:flex-end}
+.admit{font:400 24px/1 var(--pix);letter-spacing:.08em;white-space:nowrap}
 
 /* ---------- stub: ticket number, QR, wordmark ---------- */
 /* equal 1fr rows above and below keep the QR at the exact vertical centre */
 .stub{left:calc(var(--perf) + 18px);right:18px;display:grid;grid-template-rows:1fr auto 1fr;justify-items:center;row-gap:24px}
-/* -7.7px trims the pixel font's empty descent, so the number→QR gap matches QR→logo */
-.stub .no{align-self:end;margin-bottom:-7.7px;font:700 40px/1 var(--pix);letter-spacing:-.02em;white-space:nowrap}
+/* -6px trims the display font's empty descent, so the number→QR gap matches QR→logo (both 24px) */
+.stub .no{align-self:end;margin-bottom:-6px;font:400 40px/1 var(--pix);letter-spacing:.08em;white-space:nowrap}
+/* Architype has no #, so it's set in the mono face, smaller and in the accent colour */
+.stub .no .hash{font:700 .62em/1 var(--mono);color:var(--accent);margin-right:.1em;vertical-align:.08em}
 .stub .qr{width:156px;height:156px}
 .qr svg{display:block;width:100%;height:100%}
 .qr svg rect[fill="#ffffff"]{fill:transparent}
@@ -105,7 +108,7 @@ body.shot .sw{display:none}
   <div class="perf"></div>
 
   <div class="box stub">
-    <div class="no">#<span data-f="no">0042</span></div>
+    <div class="no"><span class="hash">#</span><span data-f="no">0042</span></div>
     <div class="qr" data-qr></div>
     <div class="logo-slot"><img class="on-paper" src="src/brand/failproofai-wordmark-ink.png" alt="failproof ai"><img class="on-dark" src="src/brand/failproofai-wordmark.png" alt="failproof ai"></div>
   </div>
@@ -196,7 +199,7 @@ function apply(){
 }
 document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{T=b.dataset.t;apply();});
 // render.py waits for window.__ready before capturing
-Promise.all([document.fonts.load('700 76px "FP Pixel"'),document.fonts.load('500 14px "FP Mono"'),document.fonts.load('700 11px "FP Mono"'),document.fonts.ready,...[...document.images].map(i=>i.decode())])
+Promise.all([document.fonts.load('400 76px "FP Display"'),document.fonts.load('500 14px "FP Mono"'),document.fonts.load('700 11px "FP Mono"'),document.fonts.ready,...[...document.images].map(i=>i.decode())])
   .then(apply).then(()=>{window.__ready=true;});
 </script>
 </body>

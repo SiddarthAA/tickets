@@ -53,6 +53,7 @@ except ImportError:
 
 HERE = pathlib.Path(__file__).resolve().parent
 URL = "https://befailproof.ai/events/jev-buildathon/"
+DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
 
 SUBJECT = "you're in: your jev buildathon ticket"
 DATE, TIME, VENUE = "sun 27 sep 2026", "3:00 – 6:30 pm ist", "lossfunk, indiranagar, bengaluru"
@@ -136,6 +137,10 @@ def render(people, out: pathlib.Path, theme, bg, scale, check) -> list[str]:
     """Writes out/<slug>.png for each attendee; returns the slugs whose QR didn't read back."""
     from playwright.sync_api import sync_playwright
 
+    if not DISPLAY_FONT.exists():
+        sys.exit(f"missing {DISPLAY_FONT.relative_to(HERE)} (Architype Stedelijk, licensed, so not in git). fetch it with:\n"
+                 f"  gh api repos/FailproofAI/platform/contents/failproofai/landing/fonts-license/Architype-Stedelijk.woff2 "
+                 f"-H 'Accept: application/vnd.github.raw' > {DISPLAY_FONT.relative_to(HERE)}")
     out.mkdir(parents=True, exist_ok=True)
     qr = qr_svg(URL)
     failed = []
