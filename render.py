@@ -54,7 +54,7 @@ except ImportError:
 HERE = pathlib.Path(__file__).resolve().parent
 URL = "https://befailproof.ai/events/jev-buildathon/"
 
-SUBJECT = "your jev buildathon ticket"
+SUBJECT = "you're in: your jev buildathon ticket"
 DATE, TIME, VENUE = "sun 27 sep 2026", "3:00 – 6:30 pm ist", "lossfunk, indiranagar, bengaluru"
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TEMPORARY = {421, 450, 451, 452, 454}
@@ -163,28 +163,36 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1].rstrip(">"))
 
+    # one list of paragraphs for both versions, so the plain text and html never drift apart
+    before = [
+        f"we're genuinely so excited to host you at jev buildathon this sunday.",
+        f"only about 1% of the people who applied made it in, and you're one of them. "
+        f"we can't wait to see what you build.",
+        f"here's your ticket, #{no:04d}. it's yours to flex: if you're posting about the buildathon "
+        f"on x, linkedin or instagram, share it and tag failproof ai and lossfunk. "
+        f"we'll be looking out for it, and cheering.",
+    ]
+    after = "light or dark, whichever suits your feed."
+
     msg.set_content(
-        f"hi {first},\n\n"
-        f"you're in for jev buildathon on sunday. here's your ticket, #{no:04d}.\n\n"
-        f"it comes in light and dark (the images are in this email). if you post about the\n"
-        f"buildathon, share whichever you like and tag failproof ai and lossfunk so we see it.\n\n"
+        f"hi {first},\n\n" + "\n\n".join(before) + " (both versions are in this email.)\n\n"
         f"{DATE} · {TIME} · {VENUE}\n{URL}\n\n"
-        f"see you there,\nnivedit\n")
+        f"see you sunday,\nnivedit\nfailproof ai\n")
 
     lcid, dcid = make_msgid("light")[1:-1], make_msgid("dark")[1:-1]
     img = lambda cid, alt: (f'<img src="cid:{cid}" alt="{alt}" width="600" '
                             f'style="display:block;width:100%;max-width:600px;height:auto;margin:0 0 12px">')
+    paras = "\n".join(f"<p>{html.escape(t)}</p>" for t in before)
     msg.add_alternative(f"""\
-<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#111;max-width:600px">
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#111;max-width:600px">
 <p>hi {html.escape(first)},</p>
-<p>you're in for jev buildathon on sunday. here's your ticket, #{no:04d}.</p>
-<p>it comes in light and dark. if you post about the buildathon, share whichever you like and tag
-failproof ai and lossfunk so we see it.</p>
+{paras}
 {img(lcid, f"jev buildathon ticket #{no:04d}, light")}
 {img(dcid, f"jev buildathon ticket #{no:04d}, dark")}
+<p style="color:#666">{html.escape(after)}</p>
 <p style="color:#666;font-size:13px">{html.escape(DATE)} · {html.escape(TIME)} · {html.escape(VENUE)}<br>
 <a href="{URL}" style="color:#666">{URL}</a></p>
-<p>see you there,<br>nivedit</p>
+<p>see you sunday,<br>nivedit<br><span style="color:#666">failproof ai</span></p>
 </div>""", subtype="html")
     part = msg.get_payload()[1]
     part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"ticket-{no:04d}-light.png")
