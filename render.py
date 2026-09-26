@@ -431,7 +431,7 @@ def main():
     em.add_argument("--dry-run", action="store_true", help="render and check everything, write dest/preview.eml, send nothing")
     em.add_argument("--test-to", metavar="EMAIL", help="send every email to this address instead (not logged)")
     em.add_argument("--sender", default="Nivedit Jain <nivedit@befailproof.ai>", help="From: a verified send-as address")
-    em.add_argument("--login", default="nivedit@exosphere.host", help="the Google account that owns --sender")
+    em.add_argument("--login", default="nivedit@befailproof.ai", help="the Google account that owns --sender")
     em.add_argument("--delay", type=float, default=8, help="seconds between emails (±30%% jitter)")
     em.add_argument("--batch", type=int, default=40, help="emails per connection")
     em.add_argument("--batch-pause", type=float, default=90, help="seconds to rest between batches")
