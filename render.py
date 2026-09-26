@@ -3,7 +3,7 @@
 jev buildathon tickets: one high-resolution PNG per attendee, and optionally email each one.
 
 setup (once, from the repo root):
-  uv venv .venv && uv pip install -p .venv playwright qrcode opencv-python-headless
+  uv venv .venv && uv pip install -p .venv playwright qrcode opencv-python-headless pillow
   .venv/bin/playwright install chromium
 
 render:
@@ -156,6 +156,21 @@ def render(people, out: pathlib.Path, theme, bg, scale, check) -> list[str]:
 
 # ---------- email ----------
 
+INK, INK2, INK3, PAPER, ACCENT, RULE = "#0e0e12", "#3b3f46", "#6b7079", "#ecebe8", "#d8436b", "#e3e1dc"
+MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace"
+SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+
+def email_png(path: pathlib.Path) -> bytes:
+    """The ticket as a 64-colour palette PNG: looks the same, QR still scans, about 5x smaller,
+    which keeps each email well under 1 MB (big emails read as bulk mail to spam filters)."""
+    import io
+    from PIL import Image
+    buf = io.BytesIO()
+    Image.open(path).quantize(colors=64, method=Image.Quantize.FASTOCTREE).save(buf, "PNG", optimize=True)
+    return buf.getvalue()
+
+
 def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     first = name.split()[0]
     msg = EmailMessage()
@@ -163,40 +178,90 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     msg["Date"] = formatdate(localtime=True)
     msg["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1].rstrip(">"))
 
-    # one list of paragraphs for both versions, so the plain text and html never drift apart
-    before = [
-        f"we're genuinely so excited to host you at jev buildathon this sunday.",
-        f"only about 1% of the people who applied made it in, and you're one of them. "
-        f"we can't wait to see what you build.",
-        f"here's your ticket, #{no:04d}. it's yours to flex: if you're posting about the buildathon "
-        f"on x, linkedin or instagram, share it and tag failproof ai and lossfunk. "
-        f"we'll be looking out for it, and cheering.",
-    ]
-    after = "light or dark, whichever suits your feed."
+    # the words, once, for both the plain-text and html versions
+    intro = [f"we're genuinely so excited to host you at jev buildathon this sunday. only about 1% of the "
+             f"people who applied made it in, and you're one of them. we can't wait to see what you build.",
+             f"here's your ticket, #{no:04d}. it's yours to flex."]
+    share = ("share either ticket on x, linkedin or instagram and tag "
+             "failproof ai and lossfunk. we'll be looking out for it, and cheering.")
+    thanks = ("as a thank-you for being part of this, we're giving you $200 in failproof ai cloud credits. "
+              "they'll come in a separate email, so keep an eye out.")
+    preheader = "you're one of the ~1% we approved. your ticket's inside."
 
     msg.set_content(
-        f"hi {first},\n\n" + "\n\n".join(before) + " (both versions are in this email.)\n\n"
+        f"hi {first},\n\n" + "\n\n".join(intro) + " (light and dark versions are in this email.)\n\n"
+        f"posting about it? {share}\n\n"
         f"{DATE} · {TIME} · {VENUE}\n{URL}\n\n"
+        f"one more thing: {thanks}\n\n"
+        f"questions? just reply to this email.\n\n"
         f"see you sunday,\nnivedit\nfailproof ai\n")
 
+    e = html.escape
     lcid, dcid = make_msgid("light")[1:-1], make_msgid("dark")[1:-1]
-    img = lambda cid, alt: (f'<img src="cid:{cid}" alt="{alt}" width="600" '
-                            f'style="display:block;width:100%;max-width:600px;height:auto;margin:0 0 12px">')
-    paras = "\n".join(f"<p>{html.escape(t)}</p>" for t in before)
+    label = lambda t, color=INK3: (f'<div style="font-family:{MONO};font-size:11px;letter-spacing:2px;'
+                                   f'text-transform:uppercase;color:{color};margin:0 0 6px">{t}</div>')
+    ticket = lambda cid, which: (f'{label(which)}<img src="cid:{cid}" alt="jev buildathon ticket #{no:04d}, {which}" '
+                                 f'width="552" style="display:block;width:100%;max-width:552px;height:auto;border:0;'
+                                 f'margin:0 0 18px">')
+    cell = lambda k, v, sub, edge: (f'<td valign="top" style="padding:14px 12px 14px {0 if edge else 14}px;'
+                                    f'{"" if edge else f"border-left:1px solid {RULE};"}">{label(k)}'
+                                    f'<div style="font-family:{MONO};font-size:15px;color:{INK}">{e(v)}</div>'
+                                    f'<div style="font-family:{MONO};font-size:12px;color:{INK3}">{e(sub)}</div></td>')
+    para = lambda t: f'<p style="margin:0 0 14px">{e(t)}</p>'
     msg.add_alternative(f"""\
-<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#111;max-width:600px">
-<p>hi {html.escape(first)},</p>
-{paras}
-{img(lcid, f"jev buildathon ticket #{no:04d}, light")}
-{img(dcid, f"jev buildathon ticket #{no:04d}, dark")}
-<p style="color:#666">{html.escape(after)}</p>
-<p style="color:#666;font-size:13px">{html.escape(DATE)} · {html.escape(TIME)} · {html.escape(VENUE)}<br>
-<a href="{URL}" style="color:#666">{URL}</a></p>
-<p>see you sunday,<br>nivedit<br><span style="color:#666">failproof ai</span></p>
-</div>""", subtype="html")
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
+<title>{e(SUBJECT)}</title></head>
+<body style="margin:0;padding:0;background:{PAPER}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">{e(preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{PAPER}">
+<tr><td align="center" style="padding:28px 12px">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+       style="width:100%;max-width:600px;background:#ffffff;border:1px solid {RULE};border-radius:14px;overflow:hidden">
+
+<tr><td style="background:{INK};padding:16px 24px;font-family:{MONO};font-size:11px;letter-spacing:2px;color:{PAPER}">
+FAILPROOF AI <span style="color:{ACCENT}">×</span> LOSSFUNK</td></tr>
+
+<tr><td style="padding:32px 24px 4px;font-family:{SANS};font-size:16px;line-height:1.6;color:{INK2}">
+{label(f"jev buildathon · ticket #{no:04d}", ACCENT)}
+<h1 style="margin:0 0 18px;font-family:{SANS};font-size:30px;line-height:1.2;font-weight:800;color:{INK}">you're in, {e(first)}.</h1>
+{"".join(para(t) for t in intro)}
+</td></tr>
+
+<tr><td style="padding:10px 24px 0">{ticket(lcid, "light")}{ticket(dcid, "dark")}</td></tr>
+
+<tr><td style="padding:0 24px 22px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f6f5f2;border-left:3px solid {ACCENT};border-radius:4px">
+<tr><td style="padding:16px 18px;font-family:{SANS};font-size:15px;line-height:1.55;color:{INK2}">
+<b style="color:{INK}">posting about it?</b> {e(share)}</td></tr></table>
+</td></tr>
+
+<tr><td style="padding:0 24px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="border-top:1px solid {INK};border-bottom:1px solid {INK}">
+<tr>{cell("date", "sun 27 sep", "2026", True)}{cell("time", "3:00 – 6:30", "pm ist", False)}{cell("venue", "lossfunk", "indiranagar, bengaluru", False)}</tr>
+</table></td></tr>
+
+<tr><td style="padding:24px 24px 4px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
+{label("one more thing", ACCENT)}{para(thanks)}
+</td></tr>
+
+<tr><td style="padding:4px 24px 30px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
+<p style="margin:0 0 18px">questions? just reply to this email.</p>
+<p style="margin:0;color:{INK}">see you sunday,<br><b>nivedit</b><br><span style="color:{INK3}">failproof ai</span></p>
+</td></tr>
+</table>
+
+<p style="margin:16px 0 0;font-family:{SANS};font-size:12px;line-height:1.5;color:{INK3}">
+you're getting this because you were approved for jev buildathon.<br>
+<a href="{URL}" style="color:{INK3}">{URL.removeprefix("https://").rstrip("/")}</a></p>
+</td></tr></table>
+</body></html>""", subtype="html")
     part = msg.get_payload()[1]
-    part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"ticket-{no:04d}-light.png")
-    part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"ticket-{no:04d}-dark.png")
+    part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"jev-ticket-{no:04d}-light.png")
+    part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"jev-ticket-{no:04d}-dark.png")
     return msg
 
 
@@ -285,7 +350,7 @@ def send_all(a, people, check):
         return 0
 
     # ---- render only the tickets about to go out; any bad QR stops everything ----
-    scale = a.scale or 2  # ~4 MB per email; 3 doubles that for no visible gain at email width
+    scale = a.scale or 2  # sharp enough for social posts; email_png keeps the email itself small
     failed = []
     for theme, d in (("paper", light_dir), ("dark", dark_dir)):
         failed += render(todo, d, theme, "transparent", scale, check)
@@ -299,8 +364,8 @@ def send_all(a, people, check):
             print(f"  #{p.no:04d}  {p.slug:<28} → {p.email}")
         p = todo[0]
         preview = out / "preview.eml"
-        preview.write_bytes(build(a.sender, p.email, p.name, p.no, (light_dir / f"{p.slug}.png").read_bytes(),
-                                  (dark_dir / f"{p.slug}.png").read_bytes()).as_bytes())
+        preview.write_bytes(build(a.sender, p.email, p.name, p.no, email_png(light_dir / f"{p.slug}.png"),
+                                  email_png(dark_dir / f"{p.slug}.png")).as_bytes())
         print(f"\ndry run, nothing sent. first email written to {preview} (open it in a mail app)")
         return 0
     if not a.yes and input(f"send {len(todo)} email(s)? [y/N] ").strip().lower() != "y":
@@ -323,7 +388,7 @@ def send_all(a, people, check):
                 time.sleep(a.batch_pause)
             to = a.test_to or p.email
             msg = build(a.sender, to, p.name, p.no,
-                        (light_dir / f"{p.slug}.png").read_bytes(), (dark_dir / f"{p.slug}.png").read_bytes())
+                        email_png(light_dir / f"{p.slug}.png"), email_png(dark_dir / f"{p.slug}.png"))
             try:
                 mailer.send(msg, to)
             except smtplib.SMTPResponseException as e:

@@ -6,7 +6,7 @@ Generates one high-res PNG ticket per attendee for **jev buildathon** (failproof
 
 ```bash
 uv venv .venv
-uv pip install -p .venv playwright qrcode opencv-python-headless
+uv pip install -p .venv playwright qrcode opencv-python-headless pillow
 .venv/bin/playwright install chromium
 ```
 
@@ -69,6 +69,6 @@ Nothing is sent unless every row has a valid email and every ticket's QR scans. 
 | `--batch N` / `--batch-pause S` | `40` / `90` | reconnect and rest every N emails |
 | `--max N` | none | send at most N this run |
 | `--sender` / `--login` | befailproof.ai / exosphere.host | From address / account that owns it |
-| `--scale N` | `2` with `--send` | about 4 MB per email |
+| `--scale N` | `2` with `--send` | tickets are compressed for email, about 0.9 MB per email |
 
 The wording lives in `build()` in `render.py`; the event details are the `SUBJECT`, `DATE`, `TIME` and `VENUE` constants at the top.
