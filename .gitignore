@@ -1,2 +1,6 @@
 .venv/
 dest/
+.gmail-app-password
+*.csv
+!attendees.example.csv
+__pycache__/
