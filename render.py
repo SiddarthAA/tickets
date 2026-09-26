@@ -111,11 +111,14 @@ def read_attendees(path) -> list[Attendee]:
     if not col:
         sys.exit(f"csv needs a `name` or `participant name` column (found: {reader.fieldnames})")
     ecol = next((h for h in heads if h and h.strip().lower() in ("email", "email address", "e-mail")), None)
-    seen, taken, out = set(), set(), []
+    scol = next((h for h in heads if h and h.strip().lower() == "approval_status"), None)
+    seen, taken, out, unapproved = set(), set(), [], Counter()
     for i, r in enumerate(reader, 2):
         name = " ".join((r.get(col) or "").split())
         if not name:
             print(f"- row {i}: empty name, skipped"); continue
+        if scol and (r.get(scol) or "").strip().lower() != "approved":
+            unapproved[(r.get(scol) or "").strip() or "blank"] += 1; continue
         no = ticket_no(name, taken)
         base = slugify(name) or f"attendee-{no:04d}"
         slug, k = base, 1
@@ -123,6 +126,9 @@ def read_attendees(path) -> list[Attendee]:
             k += 1; slug = f"{base}-{k}"
         seen.add(slug)
         out.append(Attendee(i, name, no, slug, (r.get(ecol) or "").strip() if ecol else ""))
+    if unapproved:
+        print(f"- skipped {sum(unapproved.values())} guest(s) not approved: "
+              + ", ".join(f"{n} {k}" for k, n in unapproved.items()))
     return out
 
 
@@ -333,17 +339,24 @@ def send_all(a, people, check):
            for p in people if not EMAIL_RE.match(p.email)]
     if bad:
         sys.exit("fix these first (nothing was rendered or sent):\n  " + "\n  ".join(bad))
-    dupes = sorted(e for e, c in Counter(p.email.lower() for p in people).items() if c > 1)
-    if dupes:
-        print(f"! note: these addresses get more than one ticket: {', '.join(dupes)}")
-
-    done = set()
+    # dest/sent.csv spans every sheet sent from this folder: an address that already got a ticket is
+    # never emailed again, and numbers already handed out are never reused
+    sent_emails, taken = set(), set()
     if log.exists() and not a.test_to:
-        done = {(r["email"].lower(), r["file"]) for r in csv.DictReader(open(log, newline=""))}
-    todo = [p for p in people if (p.email.lower(), p.slug) not in done]
-    already = len(people) - len(todo)
+        for r in csv.DictReader(open(log, newline="")):
+            sent_emails.add(r["email"].lower()); taken.add(int(r["no"]))
+    todo, seen = [], set()
+    for p in people:
+        key = p.email.lower()
+        if key in seen:
+            print(f"! row {p.row} ({p.name}): {p.email} is already on an earlier row, skipped")
+        elif key not in sent_emails:
+            todo.append(p)
+        seen.add(key)
+    already = sum(p.email.lower() in sent_emails for p in people)
     if a.max:
         todo = todo[:a.max]
+    todo = [p._replace(no=ticket_no(p.name, taken)) for p in todo]
     print(f"{len(people)} attendee(s), {already} already sent, {len(todo)} to send from {a.sender}"
           + (f", all to {a.test_to}" if a.test_to else ""))
     if not todo:

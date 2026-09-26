@@ -61,7 +61,9 @@ On WhatsApp, attach the PNG as a **Document**, not a photo, or it gets compresse
 .venv/bin/python render.py guests.csv --send                       # the real run
 ```
 
-Nothing is sent unless every row has a valid email and every ticket's QR scans. It waits about 8s between emails with a longer break every 40, and backs off and retries when Gmail pushes back. Delivered emails are logged to `dest/sent.csv` and skipped on re-runs, so after a crash, Ctrl-C or Google's daily limit (about 2,000/day on Workspace) you just run the same command again.
+Nothing is sent unless every row has a valid email and every ticket's QR scans. If the CSV has an `approval_status` column (Luma does), only `approved` guests are included.
+
+More sheets later? Keep sending from the same folder. `dest/sent.csv` covers every sheet, so an address that already got a ticket is never emailed again, and ticket numbers already handed out are never reused. It waits about 8s between emails with a longer break every 40, and backs off and retries when Gmail pushes back. Delivered emails are logged to `dest/sent.csv` and skipped on re-runs, so after a crash, Ctrl-C or Google's daily limit (about 2,000/day on Workspace) you just run the same command again.
 
 | flag | default | |
 |---|---|---|
