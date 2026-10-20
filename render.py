@@ -69,10 +69,6 @@ READING = [
         ("retry is not enough: the 3u framework", "https://befailproof.ai/blog/why-retry-is-not-enough-3u", "why retries alone don't make an agent reliable"),
         ("stop praying in prompts, start enforcing with hooks", "https://befailproof.ai/blog/stop-praying-in-prompts", "guardrails that hold when the prompt doesn't"),
     ]),
-    ("prompt optimisation", [
-        ("gepa: reflective prompt evolution", "https://arxiv.org/abs/2507.19457", "the paper: prompts that improve from their own failures"),
-        ("gepa in dspy", "https://dspy.ai/api/optimizers/GEPA/overview/", "how to run it on your own agent"),
-    ]),
     ("harnesses, tools and evals", [
         ("building effective agents", "https://www.anthropic.com/engineering/building-effective-agents", "anthropic on agent patterns that work"),
         ("effective harnesses for long-running agents", "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents", "the scaffolding around the model"),
