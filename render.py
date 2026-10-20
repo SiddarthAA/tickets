@@ -54,6 +54,9 @@ except ImportError:
 HERE = pathlib.Path(__file__).resolve().parent
 URL = "https://luma.com/nt5oal7h"
 X_URL = "https://x.com/niveditjain"  # the sender's x, in the email footer
+# last line of the email footer. a real send refuses to run while ADDRESS is empty
+ADDRESS = ""  # ExosphereHost Inc's registered address, one line
+COMPANY = f"Failproof AI (ExosphereHost Inc, {ADDRESS or '<registered address>'})"
 EVENT = "hacktober-hack"  # each event gets its own dest/<EVENT>/ folder, so its sent.csv starts empty
 DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
 
@@ -227,7 +230,7 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
         f"read up before sunday. {reading_intro}\n\n"
         + "".join(f"{g}\n" + "".join(f"- {t}: {u}\n" for t, u, _ in links) + "\n" for g, links in READING) +
         f"questions? just reply to this email.\n\n"
-        f"see you sunday,\nnivedit\nfailproof ai\n\nfollow along on x: {X_URL}\n")
+        f"see you sunday,\nnivedit\nfailproof ai\n\nfollow along on x: {X_URL}\n\n{COMPANY}\n")
 
     e = html.escape
     lcid, dcid = make_msgid("light")[1:-1], make_msgid("dark")[1:-1]
@@ -299,7 +302,8 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
 <p style="margin:16px 0 0;font-family:{SANS};font-size:12px;line-height:1.5;color:{INK3}">
 you're getting this because you were approved for hacktober hack.<br>
 <a href="{URL}" style="color:{INK3}">{URL.removeprefix("https://").rstrip("/")}</a>
- · follow nivedit on x: <a href="{X_URL}" style="color:{INK3}">@{X_URL.rsplit("/", 1)[-1]}</a></p>
+ · follow nivedit on x: <a href="{X_URL}" style="color:{INK3}">@{X_URL.rsplit("/", 1)[-1]}</a><br>
+{e(COMPANY)}</p>
 </td></tr></table>
 </body></html>""", subtype="html")
     part = msg.get_payload()[1]
@@ -372,6 +376,8 @@ def send_all(a, people, check):
     light_dir, dark_dir, log = out / "light", out / "dark", out / "sent.csv"
 
     # ---- check everything before a single email goes out ----
+    if not ADDRESS and not a.dry_run:
+        sys.exit("set ADDRESS in render.py (the registered address in the email footer) before sending")
     bad = [f"row {p.row} ({p.name}): " + (f"bad email {p.email!r}" if p.email else "no email")
            for p in people if not EMAIL_RE.match(p.email)]
     if bad:
