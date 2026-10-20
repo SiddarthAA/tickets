@@ -1,6 +1,6 @@
 # tickets
 
-Generates one high-res PNG ticket per attendee for **jev buildathon** (failproof ai × lossfunk).
+Generates one high-res PNG ticket per attendee for **hacktober hack** (failproof ai × digitalocean × mlh × quad ai), [luma.com/nt5oal7h](https://luma.com/nt5oal7h).
 
 ## Setup (once)
 
@@ -26,7 +26,7 @@ uv pip install -p .venv playwright qrcode opencv-python-headless pillow
    .venv/bin/python render.py attendees.csv
    ```
 
-3. Tickets land in `dest/`, one per person: `Arjun Mehta` → `dest/arjun-mehta.png` (repeated names get `-2`, `-3`).
+3. Tickets land in `dest/hacktober-hack/`, one per person: `Arjun Mehta` → `dest/hacktober-hack/arjun-mehta.png` (repeated names get `-2`, `-3`).
 
 Each QR links to the event page and is scanned back from the finished PNG. If any fail, the run prints `✕` and exits non-zero, so don't send that batch.
 
@@ -37,7 +37,7 @@ Each QR links to the event page and is scanned back from the finished PNG. If an
 | `--theme paper\|dark` | `paper` | ticket colours |
 | `--bg dark\|transparent` | `dark` | dark border around the ticket, or ticket only |
 | `--scale N` | `3` | 3 → 3804×1704 px; use `4` for print |
-| `--out DIR` | `dest` | output folder |
+| `--out DIR` | `dest/hacktober-hack` | output folder |
 
 ## Sending
 
@@ -56,14 +56,14 @@ On WhatsApp, attach the PNG as a **Document**, not a photo, or it gets compresse
 **Each batch:** the CSV needs an `email` column as well as `name`; a Luma guest CSV works as-is. CSVs other than the example are gitignored, since they hold attendee data.
 
 ```bash
-.venv/bin/python render.py guests.csv --send --dry-run             # renders + checks everything, writes dest/preview.eml
+.venv/bin/python render.py guests.csv --send --dry-run             # renders + checks everything, writes dest/hacktober-hack/preview.eml
 .venv/bin/python render.py guests.csv --send --test-to you@x.com   # every email, sent to you instead
 .venv/bin/python render.py guests.csv --send                       # the real run
 ```
 
 Nothing is sent unless every row has a valid email and every ticket's QR scans. If the CSV has an `approval_status` column (Luma does), only `approved` guests are included.
 
-More sheets later? Keep sending from the same folder. `dest/sent.csv` covers every sheet, so an address that already got a ticket is never emailed again, and ticket numbers already handed out are never reused. It waits about 8s between emails with a longer break every 40, and backs off and retries when Gmail pushes back. Delivered emails are logged to `dest/sent.csv` and skipped on re-runs, so after a crash, Ctrl-C or Google's daily limit (about 2,000/day on Workspace) you just run the same command again.
+More sheets later? Keep sending from the same folder (each event has its own, set by `EVENT` in `render.py`). `dest/hacktober-hack/sent.csv` covers every sheet, so an address that already got a ticket is never emailed again, and ticket numbers already handed out are never reused. It waits about 8s between emails with a longer break every 40, and backs off and retries when Gmail pushes back. Delivered emails are logged to `dest/hacktober-hack/sent.csv` and skipped on re-runs, so after a crash, Ctrl-C or Google's daily limit (about 2,000/day on Workspace) you just run the same command again.
 
 | flag | default | |
 |---|---|---|

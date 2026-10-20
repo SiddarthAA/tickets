@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>jev buildathon · ticket</title>
+<title>hacktober hack · ticket</title>
 <!-- fonts are bundled in ./fonts so renders never depend on the network -->
 <style>
 /* Architype Stedelijk: the failproofai landing hero face. Licensed, so it is NOT in git: render.py fetches it into src/fonts/licensed/ */
@@ -86,18 +86,18 @@ body.shot .sw{display:none}
 <div class="tk" id="ticket">
   <div class="box art">
     <canvas id="art"></canvas>
-    <div class="cap"><span>BUILD</span><span>JUDGE</span><span>DEMO</span></div>
+    <div class="cap"><span>FIX</span><span>EVAL</span><span>SHIP</span></div>
   </div>
 
   <div class="box main">
-    <div class="pres"><span>FAILPROOF AI <span class="x">×</span> LOSSFUNK</span><span>PRESENT</span></div>
-    <div class="wm" id="wm">jev buildathon</div>
-    <p class="intro">ship an agent that does the work. let jev evals and policies judge every move it makes.</p>
-    <p class="more">bring an agent that does real work: support, payments, ops, coding or sales. solo or in a team, three and a half hours, judged live.</p>
+    <div class="pres"><span>FAILPROOF AI <span class="x">×</span> DIGITALOCEAN <span class="x">×</span> MLH <span class="x">×</span> QUAD AI</span><span>PRESENT</span></div>
+    <div class="wm" id="wm">hacktober hack</div>
+    <p class="intro">every team gets the same ai agent. you have under two hours to make it one you would ship.</p>
+    <p class="more">prompts, tools, validation, retries, guardrails, policies. solo or up to three, scored on a hidden eval suite run three times per task.</p>
     <div class="facts">
-      <div>DATE<b>sun 27 sep</b><small>2026</small></div>
-      <div>TIME<b>3:00 – 6:30</b><small>pm ist</small></div>
-      <div>VENUE<b>lossfunk</b><small>indiranagar, bengaluru</small></div>
+      <div>DATE<b>sun 25 oct</b><small>2026</small></div>
+      <div>TIME<b>4:30 – 8:00</b><small>pm ist</small></div>
+      <div>VENUE<b>quad ai</b><small>hsr layout, bengaluru</small></div>
     </div>
     <div class="foot">
       <div><div class="lbl">ISSUED TO</div><div class="nm" data-f="name">arjun mehta</div></div>
@@ -125,7 +125,7 @@ body.shot .sw{display:none}
 const P=new URLSearchParams(location.search);
 const name=(P.get('name')||'arjun mehta').trim().toLowerCase();
 const no=String(P.get('no')||'42').replace(/\D/g,'').padStart(4,'0');
-const code=P.get('code')||'https://befailproof.ai/events/jev-buildathon/';
+const code=P.get('code')||'https://luma.com/nt5oal7h';
 if(P.get('shot'))document.body.classList.add('shot');
 if(P.get('bg')==='transparent')document.documentElement.classList.add('transparent');
 document.querySelectorAll('[data-f="name"]').forEach(e=>e.textContent=name);

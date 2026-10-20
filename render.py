@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-jev buildathon tickets: one high-resolution PNG per attendee, and optionally email each one.
+hacktober hack tickets: one high-resolution PNG per attendee, and optionally email each one.
 
 setup (once, from the repo root):
   uv venv .venv && uv pip install -p .venv playwright qrcode opencv-python-headless pillow
   .venv/bin/playwright install chromium
 
 render:
-  .venv/bin/python render.py attendees.csv                  # → dest/<name>.png (paper, 3x, dark stage)
+  .venv/bin/python render.py attendees.csv                  # → dest/hacktober-hack/<name>.png (paper, 3x, dark stage)
   .venv/bin/python render.py attendees.csv --theme dark
   .venv/bin/python render.py attendees.csv --bg transparent # ticket only, die-cut corners transparent
   .venv/bin/python render.py attendees.csv --scale 4        # print size
 
-email (renders light + dark transparent tickets into dest/light and dest/dark, then sends both inline):
-  .venv/bin/python render.py attendees.csv --send --dry-run             # sends nothing, writes dest/preview.eml
+email (renders light + dark transparent tickets into dest/hacktober-hack/{light,dark}, then sends both inline):
+  .venv/bin/python render.py attendees.csv --send --dry-run             # sends nothing, writes dest/hacktober-hack/preview.eml
   .venv/bin/python render.py attendees.csv --send --test-to you@x.com   # real emails, but every one goes to you
   .venv/bin/python render.py attendees.csv --send                       # the real run
 
@@ -32,7 +32,7 @@ Pacing, so Google doesn't throttle or block the account:
   - a fresh connection every --batch emails, after a --batch-pause
   - temporary SMTP errors (4xx, dropped connections) back off 1, 2, 4, 8 min and retry
   - a daily-limit rejection stops the run; --max caps how many go out in one run
-Every delivered email is appended to dest/sent.csv and a re-run skips them, so an interrupted
+Every delivered email is appended to dest/hacktober-hack/sent.csv and a re-run skips them, so an interrupted
 or stopped run is finished by running the same command again.
 """
 import argparse, csv, datetime, getpass, hashlib, html, os, pathlib, random, re, smtplib, socket, ssl, sys, time
@@ -52,11 +52,13 @@ except ImportError:
     cv2 = None
 
 HERE = pathlib.Path(__file__).resolve().parent
-URL = "https://befailproof.ai/events/jev-buildathon/"
+URL = "https://luma.com/nt5oal7h"
+EVENT = "hacktober-hack"  # each event gets its own dest/<EVENT>/ folder, so its sent.csv starts empty
 DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
 
-SUBJECT = "you're in: your jev buildathon ticket"
-DATE, TIME, VENUE = "sun 27 sep 2026", "3:00 – 6:30 pm ist", "lossfunk, indiranagar, bengaluru"
+SUBJECT = "you're in: your hacktober hack ticket"
+DATE, TIME, VENUE = "sun 25 oct 2026", "4:30 – 8:00 pm ist", "quad ai, hsr layout, bengaluru"
+HOSTS = ["failproof ai", "digitalocean", "mlh", "quad ai"]
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TEMPORARY = {421, 450, 451, 452, 454}
 
@@ -190,20 +192,20 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     msg["Message-ID"] = make_msgid(domain=sender.rsplit("@", 1)[-1].rstrip(">"))
 
     # the words, once, for both the plain-text and html versions
-    intro = [f"we're genuinely so excited to host you at jev buildathon this sunday. only about 1% of the "
-             f"people who applied made it in, and you're one of them. we can't wait to see what you build.",
+    intro = [f"we're genuinely so excited to host you at hacktober hack this sunday. every team gets the same "
+             f"ai agent, and you have under two hours to make it one you'd ship. we can't wait to see what you do with it.",
              f"here's your ticket, #{no:04d}. it's yours to flex."]
     share = ("share either ticket on x, linkedin or instagram and tag "
-             "failproof ai and lossfunk. we'll be looking out for it, and cheering.")
-    thanks = ("as a thank-you for being part of this, we're giving you $200 in failproof ai cloud credits. "
-              "they'll come in a separate email, so keep an eye out.")
-    preheader = "you're one of the ~1% we approved. your ticket's inside."
+             + ", ".join(HOSTS[:-1]) + f" and {HOSTS[-1]}. we'll be looking out for it, and cheering.")
+    thanks = ("bring a laptop, a charger and your github account. doors open at 4:30 to form teams, "
+              "kickoff is at 4:45 sharp.")
+    preheader = "you're in for hacktober hack this sunday. your ticket's inside."
 
     msg.set_content(
         f"hi {first},\n\n" + "\n\n".join(intro) + " (light and dark versions are in this email.)\n\n"
         f"posting about it? {share}\n\n"
         f"{DATE} · {TIME} · {VENUE}\n{URL}\n\n"
-        f"one more thing: {thanks}\n\n"
+        f"before you come: {thanks}\n\n"
         f"questions? just reply to this email.\n\n"
         f"see you sunday,\nnivedit\nfailproof ai\n")
 
@@ -211,7 +213,7 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     lcid, dcid = make_msgid("light")[1:-1], make_msgid("dark")[1:-1]
     label = lambda t, color=INK3: (f'<div style="font-family:{MONO};font-size:11px;letter-spacing:2px;'
                                    f'text-transform:uppercase;color:{color};margin:0 0 6px">{t}</div>')
-    ticket = lambda cid, which: (f'{label(which)}<img src="cid:{cid}" alt="jev buildathon ticket #{no:04d}, {which}" '
+    ticket = lambda cid, which: (f'{label(which)}<img src="cid:{cid}" alt="hacktober hack ticket #{no:04d}, {which}" '
                                  f'width="552" style="display:block;width:100%;max-width:552px;height:auto;border:0;'
                                  f'margin:0 0 18px">')
     cell = lambda k, v, sub, edge: (f'<td valign="top" style="padding:14px 12px 14px {0 if edge else 14}px;'
@@ -232,10 +234,10 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
        style="width:100%;max-width:600px;background:#ffffff;border:1px solid {RULE};border-radius:14px;overflow:hidden">
 
 <tr><td style="background:{INK};padding:16px 24px;font-family:{MONO};font-size:11px;letter-spacing:2px;color:{PAPER}">
-FAILPROOF AI <span style="color:{ACCENT}">×</span> LOSSFUNK</td></tr>
+{f' <span style="color:{ACCENT}">×</span> '.join(h.upper() for h in HOSTS)}</td></tr>
 
 <tr><td style="padding:32px 24px 4px;font-family:{SANS};font-size:16px;line-height:1.6;color:{INK2}">
-{label(f"jev buildathon · ticket #{no:04d}", ACCENT)}
+{label(f"hacktober hack · ticket #{no:04d}", ACCENT)}
 <h1 style="margin:0 0 18px;font-family:{SANS};font-size:30px;line-height:1.2;font-weight:800;color:{INK}">you're in, {e(first)}.</h1>
 {"".join(para(t) for t in intro)}
 </td></tr>
@@ -252,11 +254,11 @@ FAILPROOF AI <span style="color:{ACCENT}">×</span> LOSSFUNK</td></tr>
 <tr><td style="padding:0 24px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
        style="border-top:1px solid {INK};border-bottom:1px solid {INK}">
-<tr>{cell("date", "sun 27 sep", "2026", True)}{cell("time", "3:00 – 6:30", "pm ist", False)}{cell("venue", "lossfunk", "indiranagar, bengaluru", False)}</tr>
+<tr>{cell("date", "sun 25 oct", "2026", True)}{cell("time", "4:30 – 8:00", "pm ist", False)}{cell("venue", "quad ai", "hsr layout, bengaluru", False)}</tr>
 </table></td></tr>
 
 <tr><td style="padding:24px 24px 4px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
-{label("one more thing", ACCENT)}{para(thanks)}
+{label("before you come", ACCENT)}{para(thanks)}
 </td></tr>
 
 <tr><td style="padding:4px 24px 30px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
@@ -266,13 +268,13 @@ FAILPROOF AI <span style="color:{ACCENT}">×</span> LOSSFUNK</td></tr>
 </table>
 
 <p style="margin:16px 0 0;font-family:{SANS};font-size:12px;line-height:1.5;color:{INK3}">
-you're getting this because you were approved for jev buildathon.<br>
+you're getting this because you were approved for hacktober hack.<br>
 <a href="{URL}" style="color:{INK3}">{URL.removeprefix("https://").rstrip("/")}</a></p>
 </td></tr></table>
 </body></html>""", subtype="html")
     part = msg.get_payload()[1]
-    part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"jev-ticket-{no:04d}-light.png")
-    part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"jev-ticket-{no:04d}-dark.png")
+    part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-light.png")
+    part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-dark.png")
     return msg
 
 
@@ -344,7 +346,7 @@ def send_all(a, people, check):
            for p in people if not EMAIL_RE.match(p.email)]
     if bad:
         sys.exit("fix these first (nothing was rendered or sent):\n  " + "\n  ".join(bad))
-    # dest/sent.csv spans every sheet sent from this folder: an address that already got a ticket is
+    # <out>/sent.csv spans every sheet sent from this folder: an address that already got a ticket is
     # never emailed again, and numbers already handed out are never reused
     sent_emails, taken = set(), set()
     if log.exists() and not a.test_to:
@@ -442,11 +444,11 @@ def main():
     ap.add_argument("--theme", default="paper", choices=["paper", "dark"])
     ap.add_argument("--scale", type=float, help="device pixel ratio; default 3 (3540×1440 ticket), 2 with --send")
     ap.add_argument("--bg", default="dark", choices=["dark", "transparent"], help="stage around the ticket")
-    ap.add_argument("--out", default=str(HERE / "dest"))
+    ap.add_argument("--out", default=str(HERE / "dest" / EVENT))
     ap.add_argument("--no-check", action="store_true", help="skip QR verification")
     em = ap.add_argument_group("email")
     em.add_argument("--send", action="store_true", help="render light + dark transparent tickets and email them")
-    em.add_argument("--dry-run", action="store_true", help="render and check everything, write dest/preview.eml, send nothing")
+    em.add_argument("--dry-run", action="store_true", help="render and check everything, write <out>/preview.eml, send nothing")
     em.add_argument("--test-to", metavar="EMAIL", help="send every email to this address instead (not logged)")
     em.add_argument("--sender", default="Nivedit Jain <nivedit@befailproof.ai>", help="From: a verified send-as address")
     em.add_argument("--login", default="nivedit@befailproof.ai", help="the Google account that owns --sender")
