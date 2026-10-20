@@ -59,6 +59,26 @@ DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignor
 SUBJECT = "you're in: your hacktober hack ticket"
 DATE, TIME, VENUE = "sun 25 oct 2026", "4:30 – 8:00 pm ist", "quad ai, hsr layout, bengaluru"
 HOSTS = ["failproof ai", "digitalocean", "mlh", "quad ai"]
+# "read up before sunday" in the email: (group, [(title, url, why)]). every link was checked live.
+READING = [
+    ("failproof ai", [
+        ("core concepts", "https://docs.befailproof.ai/start/concepts", "sessions, audits, policies and evals in five minutes"),
+        ("policies", "https://docs.befailproof.ai/policies/overview", "enforce what the agent may do, on every tool call"),
+        ("evaluations", "https://docs.befailproof.ai/evaluations/overview", "score every run with checks you write"),
+        ("retry is not enough: the 3u framework", "https://befailproof.ai/blog/why-retry-is-not-enough-3u", "why retries alone don't make an agent reliable"),
+        ("stop praying in prompts, start enforcing with hooks", "https://befailproof.ai/blog/stop-praying-in-prompts", "guardrails that hold when the prompt doesn't"),
+    ]),
+    ("prompt optimisation", [
+        ("gepa: reflective prompt evolution", "https://arxiv.org/abs/2507.19457", "the paper: prompts that improve from their own failures"),
+        ("gepa in dspy", "https://dspy.ai/api/optimizers/GEPA/overview/", "how to run it on your own agent"),
+    ]),
+    ("harnesses, tools and evals", [
+        ("building effective agents", "https://www.anthropic.com/engineering/building-effective-agents", "anthropic on agent patterns that work"),
+        ("effective harnesses for long-running agents", "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents", "the scaffolding around the model"),
+        ("writing tools for agents", "https://www.anthropic.com/engineering/writing-tools-for-agents", "tool definitions the model actually gets right"),
+        ("demystifying evals for ai agents", "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents", "how to write evals that catch real failures"),
+    ]),
+]
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 TEMPORARY = {421, 450, 451, 452, 454}
 
@@ -199,6 +219,7 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
              + ", ".join(HOSTS[:-1]) + f" and {HOSTS[-1]}. we'll be looking out for it, and cheering.")
     thanks = ("bring a laptop, a charger and your github account. doors open at 4:30 to form teams, "
               "kickoff is at 4:45 sharp.")
+    reading_intro = "the agent is revealed at kickoff, but these will put you a step ahead. an evening with them is plenty:"
     preheader = "you're in for hacktober hack this sunday. your ticket's inside."
 
     msg.set_content(
@@ -206,6 +227,8 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
         f"posting about it? {share}\n\n"
         f"{DATE} · {TIME} · {VENUE}\n{URL}\n\n"
         f"before you come: {thanks}\n\n"
+        f"read up before sunday. {reading_intro}\n\n"
+        + "".join(f"{g}\n" + "".join(f"- {t}: {u}\n" for t, u, _ in links) + "\n" for g, links in READING) +
         f"questions? just reply to this email.\n\n"
         f"see you sunday,\nnivedit\nfailproof ai\n")
 
@@ -221,6 +244,10 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
                                     f'<div style="font-family:{MONO};font-size:15px;color:{INK}">{e(v)}</div>'
                                     f'<div style="font-family:{MONO};font-size:12px;color:{INK3}">{e(sub)}</div></td>')
     para = lambda t: f'<p style="margin:0 0 14px">{e(t)}</p>'
+    reading = lambda group, links: (
+        f'<div style="margin:6px 0 16px">{label(group)}' + "".join(
+            f'<p style="margin:0 0 8px;font-size:14px;line-height:1.5"><a href="{e(u)}" style="color:{INK};font-weight:600">{e(t)}</a>'
+            f'<br><span style="color:{INK3}">{e(why)}</span></p>' for t, u, why in links) + '</div>')
     msg.add_alternative(f"""\
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -259,6 +286,11 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
 
 <tr><td style="padding:24px 24px 4px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
 {label("before you come", ACCENT)}{para(thanks)}
+</td></tr>
+
+<tr><td style="padding:10px 24px 8px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
+{label("read up before sunday", ACCENT)}{para(reading_intro)}
+{"".join(reading(g, links) for g, links in READING)}
 </td></tr>
 
 <tr><td style="padding:4px 24px 30px;font-family:{SANS};font-size:15px;line-height:1.6;color:{INK2}">
