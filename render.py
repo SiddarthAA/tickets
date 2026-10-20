@@ -53,6 +53,7 @@ except ImportError:
 
 HERE = pathlib.Path(__file__).resolve().parent
 URL = "https://luma.com/nt5oal7h"
+X_URL = "https://x.com/niveditjain"  # the sender's x, in the email footer
 EVENT = "hacktober-hack"  # each event gets its own dest/<EVENT>/ folder, so its sent.csv starts empty
 DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
 
@@ -230,7 +231,7 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
         f"read up before sunday. {reading_intro}\n\n"
         + "".join(f"{g}\n" + "".join(f"- {t}: {u}\n" for t, u, _ in links) + "\n" for g, links in READING) +
         f"questions? just reply to this email.\n\n"
-        f"see you sunday,\nnivedit\nfailproof ai\n")
+        f"see you sunday,\nnivedit\nfailproof ai\n\nfollow along on x: {X_URL}\n")
 
     e = html.escape
     lcid, dcid = make_msgid("light")[1:-1], make_msgid("dark")[1:-1]
@@ -301,7 +302,8 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
 
 <p style="margin:16px 0 0;font-family:{SANS};font-size:12px;line-height:1.5;color:{INK3}">
 you're getting this because you were approved for hacktober hack.<br>
-<a href="{URL}" style="color:{INK3}">{URL.removeprefix("https://").rstrip("/")}</a></p>
+<a href="{URL}" style="color:{INK3}">{URL.removeprefix("https://").rstrip("/")}</a>
+ · follow nivedit on x: <a href="{X_URL}" style="color:{INK3}">@{X_URL.rsplit("/", 1)[-1]}</a></p>
 </td></tr></table>
 </body></html>""", subtype="html")
     part = msg.get_payload()[1]
