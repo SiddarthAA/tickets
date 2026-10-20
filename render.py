@@ -55,7 +55,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 URL = "https://luma.com/nt5oal7h"
 X_URL = "https://x.com/niveditjain"  # the sender's x, in the email footer
 # last line of the email footer. a real send refuses to run while ADDRESS is empty
-ADDRESS = ""  # ExosphereHost Inc's registered address, one line
+ADDRESS = "San Francisco, CA"  # as the befailproof.ai footer gives it (city only, no street address)
 COMPANY = f"Failproof AI (ExosphereHost Inc, {ADDRESS or '<registered address>'})"
 EVENT = "hacktober-hack"  # each event gets its own dest/<EVENT>/ folder, so its sent.csv starts empty
 DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
