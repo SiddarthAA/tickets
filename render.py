@@ -24,18 +24,18 @@ Ticket numbers look random but are derived from the name, so a re-run gives ever
 Every QR (the event page) is decoded back from the finished PNG. A mismatch is reported and
 the run exits non-zero (and with --send, nothing is sent), so a bad ticket never goes out.
 
-Email goes through Gmail SMTP, logged in as --login with an app password, with From set to
---sender, a verified "Send mail as" address on that account. The app password is read from
-$GMAIL_APP_PASSWORD, else from .gmail-app-password (gitignored), else asked for.
-Pacing, so Google doesn't throttle or block the account:
+Email goes through listmonk's transactional API, using a transactional template
+whose body is {{ Safe .Tx.Data.html }}. Set LISTMONK_API_USER, LISTMONK_API_TOKEN,
+and LISTMONK_TEMPLATE_ID before a live send. The two ticket PNGs are attached.
+Pacing:
   - a pause of --delay seconds (±30% jitter) between emails
-  - a fresh connection every --batch emails, after a --batch-pause
-  - temporary SMTP errors (4xx, dropped connections) back off 1, 2, 4, 8 min and retry
-  - a daily-limit rejection stops the run; --max caps how many go out in one run
-Every delivered email is appended to dest/hacktober-hack/sent.csv and a re-run skips them, so an interrupted
-or stopped run is finished by running the same command again.
+  - a longer --batch-pause every --batch emails
+  - --max caps how many go out in one run
+Every accepted email is appended to dest/hacktober-hack/sent.csv. An attempt is
+journaled before its API call; ambiguous failures require manual reconciliation
+before retrying, so a rerun does not silently duplicate a ticket.
 """
-import argparse, csv, datetime, getpass, hashlib, html, os, pathlib, random, re, smtplib, socket, ssl, sys, time
+import argparse, csv, datetime, fcntl, hashlib, html, json, os, pathlib, random, re, sys, time, urllib.error, urllib.request, uuid
 import unicodedata, urllib.parse
 from collections import Counter
 from email.message import EmailMessage
@@ -58,6 +58,9 @@ X_URL = "https://x.com/niveditjain"  # the sender's x, in the email footer
 ADDRESS = "8 The Green, Dover, Delaware, US"
 COMPANY = f"Failproof AI (ExosphereHost Inc, {ADDRESS or '<registered address>'})"
 EVENT = "hacktober-hack"  # each event gets its own dest/<EVENT>/ folder, so its sent.csv starts empty
+LISTMONK_URL = "https://updates.befailproof.ai"
+LISTMONK_SENDER = "Failproof AI <ticket@befailproof.com>"
+LISTMONK_TEMPLATE_BODY = "{{ Safe .Tx.Data.html }}"
 DISPLAY_FONT = HERE / "src/fonts/licensed/Architype-Stedelijk.woff2"  # gitignored; ticket.html loads it
 
 SUBJECT = "you're in: your hacktober hack ticket"
@@ -80,7 +83,6 @@ READING = [
     ]),
 ]
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-TEMPORARY = {421, 450, 451, 452, 454}
 
 
 # ---------- tickets ----------
@@ -128,15 +130,17 @@ class Attendee(NamedTuple):
 
 def read_attendees(path) -> list[Attendee]:
     """The CSV's attendees with their ticket numbers and file names; empty names are reported and skipped."""
-    reader = csv.DictReader(open(path, newline="", encoding="utf-8-sig"))
-    heads = reader.fieldnames or []
+    with open(path, newline="", encoding="utf-8-sig") as file:
+        reader = csv.DictReader(file)
+        heads = reader.fieldnames or []
+        rows = list(reader)
     col = next((h for h in heads if h and h.strip().lower() in ("name", "participant name")), None)
     if not col:
         sys.exit(f"csv needs a `name` or `participant name` column (found: {reader.fieldnames})")
     ecol = next((h for h in heads if h and h.strip().lower() in ("email", "email address", "e-mail")), None)
     scol = next((h for h in heads if h and h.strip().lower() == "approval_status"), None)
     seen, taken, out, unapproved = set(), set(), [], Counter()
-    for i, r in enumerate(reader, 2):
+    for i, r in enumerate(rows, 2):
         name = " ".join((r.get(col) or "").split())
         if not name:
             print(f"- row {i}: empty name, skipped"); continue
@@ -204,7 +208,7 @@ def email_png(path: pathlib.Path) -> bytes:
     return buf.getvalue()
 
 
-def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
+def build(sender, to, name, no, light: bytes = b"", dark: bytes = b"", *, inline_images=True) -> EmailMessage:
     first = name.split()[0]
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = sender, to, SUBJECT
@@ -223,7 +227,8 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
     preheader = "you're in for hacktober hack this sunday. your ticket's inside."
 
     msg.set_content(
-        f"hi {first},\n\n" + "\n\n".join(intro) + " (light and dark versions are in this email.)\n\n"
+        f"hi {first},\n\n" + "\n\n".join(intro) + " (light and dark tickets are "
+        + ("in this email" if inline_images else "attached to this email") + ".)\n\n"
         f"posting about it? {share}\n\n"
         f"{DATE} · {TIME} · {VENUE}\n{URL}\n\n"
         f"before you come: {thanks}\n\n"
@@ -238,7 +243,10 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
                                    f'text-transform:uppercase;color:{color};margin:0 0 6px">{t}</div>')
     ticket = lambda cid, which: (f'{label(which)}<img src="cid:{cid}" alt="hacktober hack ticket #{no:04d}, {which}" '
                                  f'width="552" style="display:block;width:100%;max-width:552px;height:auto;border:0;'
-                                 f'margin:0 0 18px">')
+                                 f'margin:0 0 18px">') if inline_images else ''
+    attachment_note = '' if inline_images else ('<p style="font-family:Arial,sans-serif;font-size:16px">'
+                                                  'your light and dark tickets are attached as PNGs. '
+                                                  'download either one to share.</p>')
     cell = lambda k, v, sub, edge: (f'<td valign="top" style="padding:14px 12px 14px {0 if edge else 14}px;'
                                     f'{"" if edge else f"border-left:1px solid {RULE};"}">{label(k)}'
                                     f'<div style="font-family:{MONO};font-size:15px;color:{INK}">{e(v)}</div>'
@@ -269,7 +277,7 @@ def build(sender, to, name, no, light: bytes, dark: bytes) -> EmailMessage:
 {"".join(para(t) for t in intro)}
 </td></tr>
 
-<tr><td style="padding:10px 24px 0">{ticket(lcid, "light")}{ticket(dcid, "dark")}</td></tr>
+<tr><td style="padding:10px 24px 0">{ticket(lcid, "light")}{ticket(dcid, "dark")}{attachment_note}</td></tr>
 
 <tr><td style="padding:0 24px 22px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -306,74 +314,77 @@ you're getting this because you were approved for hacktober hack.<br>
 {e(COMPANY)}</p>
 </td></tr></table>
 </body></html>""", subtype="html")
-    part = msg.get_payload()[1]
-    part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-light.png")
-    part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-dark.png")
+    if inline_images:
+        part = msg.get_payload()[1]
+        part.add_related(light, "image", "png", cid=f"<{lcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-light.png")
+        part.add_related(dark, "image", "png", cid=f"<{dcid}>", disposition="inline", filename=f"hacktober-hack-ticket-{no:04d}-dark.png")
     return msg
 
 
-def app_password() -> str:
-    if os.environ.get("GMAIL_APP_PASSWORD"):
-        return os.environ["GMAIL_APP_PASSWORD"].strip()
-    f = HERE / ".gmail-app-password"
-    if f.exists():
-        return f.read_text().strip()
-    return getpass.getpass("gmail app password: ").strip()
+class ListmonkError(Exception):
+    pass
 
 
-class Mailer:
-    """One SMTP connection, reopened when it drops or after every batch."""
+class Listmonk:
+    """Transactional sends through listmonk. A lost response is never retried automatically."""
 
-    def __init__(self, login, password):
-        self.login, self.password, self.smtp = login, password, None
+    def __init__(self, url, user, token, template_id):
+        if not url.startswith("https://"):
+            raise ListmonkError("LISTMONK_URL must use HTTPS")
+        if not user or not token or not template_id:
+            raise ListmonkError("set LISTMONK_API_USER, LISTMONK_API_TOKEN and LISTMONK_TEMPLATE_ID")
+        self.url = url.rstrip("/")
+        self.template_id = int(template_id)
+        self.authorization = f"token {user.strip()}:{token.strip()}"
 
-    def connect(self):
-        self.close()
-        self.smtp = smtplib.SMTP_SSL("smtp.gmail.com", 465, context=ssl.create_default_context(), timeout=120)
+    def request(self, path, body=None, content_type=None):
+        headers = {"Authorization": self.authorization}
+        if content_type:
+            headers["Content-Type"] = content_type
+        req = urllib.request.Request(self.url + path, data=body, headers=headers,
+                                     method="POST" if body is not None else "GET")
         try:
-            self.smtp.login(self.login, self.password.replace(" ", ""))
-        except smtplib.SMTPAuthenticationError as e:
-            sys.exit(f"login failed for {self.login}: {e.smtp_error.decode(errors='replace')}\n"
-                     "use an app password (myaccount.google.com/apppasswords), not the account password")
+            with urllib.request.urlopen(req, timeout=90) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as exc:
+            detail = exc.read(500).decode("utf-8", errors="replace")
+            raise ListmonkError(f"listmonk HTTP {exc.code}: {detail}") from exc
+        except (urllib.error.URLError, TimeoutError, ValueError) as exc:
+            raise ListmonkError(f"listmonk response unknown: {exc}") from exc
 
-    def close(self):
-        if self.smtp:
-            try:
-                self.smtp.quit()
-            except Exception:
-                pass
-            self.smtp = None
+    def verify_template(self):
+        result = self.request(f"/api/templates/{self.template_id}")
+        template = result.get("data") or {}
+        if template.get("type") != "tx" or template.get("body", "").strip() != LISTMONK_TEMPLATE_BODY:
+            raise ListmonkError("transactional template must have body: " + LISTMONK_TEMPLATE_BODY)
 
-    def send(self, msg: EmailMessage, to: str):
-        """Send with retries; raises SMTPResponseException for a permanent rejection."""
-        for attempt in range(5):
-            try:
-                if not self.smtp:
-                    self.connect()
-                self.smtp.send_message(msg, to_addrs=[to])
-                return
-            except smtplib.SMTPRecipientsRefused as e:
-                code, text = next(iter(e.recipients.values()))
-                if code not in TEMPORARY:
-                    raise smtplib.SMTPResponseException(code, text)
-                err = f"{code} {text.decode(errors='replace')}"
-            except smtplib.SMTPResponseException as e:
-                text = e.smtp_error.decode(errors="replace")
-                if "5.4.5" in text or "limit exceeded" in text.lower() or e.smtp_code not in TEMPORARY:
-                    raise
-                err = f"{e.smtp_code} {text}"
-            except (smtplib.SMTPServerDisconnected, socket.error) as e:
-                err = f"connection: {e}"
-            self.close()
-            wait = 60 * 2 ** attempt
-            print(f"  ! {err.strip()}; retrying in {wait // 60} min")
-            time.sleep(wait)
-        raise smtplib.SMTPResponseException(0, b"gave up after 5 attempts")
+    def send(self, to, msg, tickets):
+        html_body = msg.get_body(preferencelist=("html",)).get_content()
+        plain_body = msg.get_body(preferencelist=("plain",)).get_content()
+        payload = {
+            "subscriber_mode": "external", "subscriber_emails": [to],
+            "template_id": self.template_id, "from_email": msg["From"],
+            "subject": msg["Subject"], "content_type": "html",
+            "altbody": plain_body, "data": {"html": html_body},
+        }
+        boundary = "ticket-" + uuid.uuid4().hex
+        chunks = [f"--{boundary}\r\nContent-Disposition: form-data; name=\"data\"\r\n"
+                  "Content-Type: application/json; charset=utf-8\r\n\r\n".encode(),
+                  json.dumps(payload).encode(), b"\r\n"]
+        for png, filename in tickets:
+            chunks.extend([f"--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; "
+                           f"filename=\"{filename}\"\r\nContent-Type: image/png\r\n\r\n".encode(),
+                           png, b"\r\n"])
+        chunks.append(f"--{boundary}--\r\n".encode())
+        result = self.request("/api/tx", b"".join(chunks), f"multipart/form-data; boundary={boundary}")
+        if result.get("data") is not True:
+            raise ListmonkError(f"listmonk did not confirm acceptance: {str(result)[:500]}")
 
 
 def send_all(a, people, check):
     out = pathlib.Path(a.out)
     light_dir, dark_dir, log = out / "light", out / "dark", out / "sent.csv"
+    attempts_log = out / "attempts.csv"
 
     # ---- check everything before a single email goes out ----
     if not ADDRESS and not a.dry_run:
@@ -384,26 +395,35 @@ def send_all(a, people, check):
         sys.exit("fix these first (nothing was rendered or sent):\n  " + "\n  ".join(bad))
     # <out>/sent.csv spans every sheet sent from this folder: an address that already got a ticket is
     # never emailed again, and numbers already handed out are never reused
-    sent_emails, taken = set(), set()
+    sent_emails, attempted_emails, taken = set(), set(), set()
     if log.exists() and not a.test_to:
-        for r in csv.DictReader(open(log, newline="")):
-            sent_emails.add(r["email"].lower()); taken.add(int(r["no"]))
+        with open(log, newline="") as file:
+            for r in csv.DictReader(file):
+                sent_emails.add(r["email"].strip().lower()); taken.add(int(r["no"]))
+    if attempts_log.exists() and not a.test_to:
+        with open(attempts_log, newline="") as file:
+            for r in csv.DictReader(file):
+                attempted_emails.add(r["email"].strip().lower()); taken.add(int(r["no"]))
+    unresolved = attempted_emails - sent_emails
     todo, seen = [], set()
     for p in people:
-        key = p.email.lower()
+        key = p.email.strip().lower()
         if key in seen:
             print(f"! row {p.row} ({p.name}): {p.email} is already on an earlier row, skipped")
-        elif key not in sent_emails:
+        elif key not in sent_emails and key not in unresolved:
             todo.append(p)
         seen.add(key)
-    already = sum(p.email.lower() in sent_emails for p in people)
+    already = sum(p.email.strip().lower() in sent_emails for p in people)
+    pending = sorted(set(seen) & unresolved)
+    if pending:
+        print("! unresolved listmonk attempt(s), skipped until checked: " + ", ".join(pending))
     if a.max:
         todo = todo[:a.max]
     todo = [p._replace(no=ticket_no(p.name, taken)) for p in todo]
     print(f"{len(people)} attendee(s), {already} already sent, {len(todo)} to send from {a.sender}"
           + (f", all to {a.test_to}" if a.test_to else ""))
     if not todo:
-        return 0
+        return 1 if pending else 0
 
     # ---- render only the tickets about to go out; any bad QR stops everything ----
     scale = a.scale or 2  # sharp enough for social posts; email_png keeps the email itself small
@@ -420,58 +440,77 @@ def send_all(a, people, check):
             print(f"  #{p.no:04d}  {p.slug:<28} → {p.email}")
         p = todo[0]
         preview = out / "preview.eml"
-        preview.write_bytes(build(a.sender, p.email, p.name, p.no, email_png(light_dir / f"{p.slug}.png"),
-                                  email_png(dark_dir / f"{p.slug}.png")).as_bytes())
+        preview_msg = build(a.sender, p.email, p.name, p.no, inline_images=False)
+        for theme, directory in (("light", light_dir), ("dark", dark_dir)):
+            preview_msg.add_attachment(email_png(directory / f"{p.slug}.png"), maintype="image", subtype="png",
+                                       filename=f"hacktober-hack-ticket-{p.no:04d}-{theme}.png")
+        preview.write_bytes(preview_msg.as_bytes())
         print(f"\ndry run, nothing sent. first email written to {preview} (open it in a mail app)")
         return 0
     if not a.yes and input(f"send {len(todo)} email(s)? [y/N] ").strip().lower() != "y":
         sys.exit("cancelled")
 
-    mailer = Mailer(a.login, app_password())
-    mailer.connect()
+    try:
+        mailer = Listmonk(a.listmonk_url, os.environ.get("LISTMONK_API_USER"),
+                          os.environ.get("LISTMONK_API_TOKEN"), a.listmonk_template_id)
+        mailer.verify_template()
+    except (ListmonkError, ValueError) as exc:
+        sys.exit(str(exc))
     new_log = not log.exists()
     logf = None if a.test_to else open(log, "a", newline="")
     writer = logf and csv.writer(logf)
     if writer and new_log:
         writer.writerow(["sent_at", "email", "name", "no", "file", "message_id"])
 
+    new_attempts = not attempts_log.exists()
+    attemptf = None if a.test_to else open(attempts_log, "a", newline="")
+    attempt_writer = attemptf and csv.writer(attemptf)
+    if attempt_writer and new_attempts:
+        attempt_writer.writerow(["attempted_at", "email", "name", "no", "request_id"])
+        attemptf.flush()
+
     sent, failed = 0, []
     try:
         for n, p in enumerate(todo):
             if n and n % a.batch == 0:
-                mailer.close()
                 print(f"  … {a.batch_pause:g}s break after {n} emails")
                 time.sleep(a.batch_pause)
             to = a.test_to or p.email
-            msg = build(a.sender, to, p.name, p.no,
-                        email_png(light_dir / f"{p.slug}.png"), email_png(dark_dir / f"{p.slug}.png"))
+            msg = build(a.sender, to, p.name, p.no, inline_images=False)
+            tickets = [(email_png(light_dir / f"{p.slug}.png"), f"hacktober-hack-ticket-{p.no:04d}-light.png"),
+                       (email_png(dark_dir / f"{p.slug}.png"), f"hacktober-hack-ticket-{p.no:04d}-dark.png")]
+            request_id = uuid.uuid4().hex
+            if attempt_writer:
+                attempt_writer.writerow([datetime.datetime.now().isoformat(timespec="seconds"), p.email,
+                                         p.name, p.no, request_id])
+                attemptf.flush()
+                os.fsync(attemptf.fileno())
             try:
-                mailer.send(msg, to)
-            except smtplib.SMTPResponseException as e:
-                text = e.smtp_error.decode(errors="replace") if isinstance(e.smtp_error, bytes) else str(e.smtp_error)
-                if "5.4.5" in text or "limit exceeded" in text.lower():
-                    print(f"✕ google's daily sending limit reached after {sent} email(s). run the same command tomorrow to finish.")
-                    break
-                failed.append(p); print(f"✕ #{p.no:04d}  {to}: {e.smtp_code} {text.strip()}")
-                continue
+                mailer.send(to, msg, tickets)
+            except ListmonkError as exc:
+                failed.append(p)
+                print(f"✕ #{p.no:04d}  {to}: {exc}; attempt recorded; check listmonk before retrying")
+                break
             sent += 1
             print(f"✓ #{p.no:04d}  {to}  ({n + 1}/{len(todo)})")
             if writer:
                 writer.writerow([datetime.datetime.now().isoformat(timespec="seconds"), p.email,
-                                 p.name, p.no, p.slug, msg["Message-ID"]])
+                                 p.name, p.no, p.slug, ""])
                 logf.flush()
+                os.fsync(logf.fileno())
             if n + 1 < len(todo) and (n + 1) % a.batch:
                 time.sleep(a.delay * random.uniform(0.7, 1.3))
     except KeyboardInterrupt:
         print("\nstopped. run the same command again to carry on where it left off.")
     finally:
-        mailer.close()
         if logf:
             logf.close()
+        if attemptf:
+            attemptf.close()
 
     print(f"\n{sent} sent" + (f", {len(failed)} failed: " + ", ".join(p.slug for p in failed) if failed else "")
           + ("" if a.test_to else f". log: {log}"))
-    return 1 if failed else 0
+    return 1 if failed or pending else 0
 
 
 def main():
@@ -486,11 +525,13 @@ def main():
     em.add_argument("--send", action="store_true", help="render light + dark transparent tickets and email them")
     em.add_argument("--dry-run", action="store_true", help="render and check everything, write <out>/preview.eml, send nothing")
     em.add_argument("--test-to", metavar="EMAIL", help="send every email to this address instead (not logged)")
-    em.add_argument("--sender", default="Nivedit Jain <nivedit@befailproof.ai>", help="From: a verified send-as address")
-    em.add_argument("--login", default="nivedit@befailproof.ai", help="the Google account that owns --sender")
-    em.add_argument("--delay", type=float, default=8, help="seconds between emails (±30%% jitter)")
-    em.add_argument("--batch", type=int, default=40, help="emails per connection")
-    em.add_argument("--batch-pause", type=float, default=90, help="seconds to rest between batches")
+    em.add_argument("--sender", default=LISTMONK_SENDER, help="From address configured in listmonk")
+    em.add_argument("--listmonk-url", default=LISTMONK_URL, help="listmonk HTTPS endpoint")
+    em.add_argument("--listmonk-template-id", default=os.environ.get("LISTMONK_TEMPLATE_ID"),
+                    help="transactional ticket template ID (or LISTMONK_TEMPLATE_ID)")
+    em.add_argument("--delay", type=float, default=20, help="seconds between emails (±30%% jitter)")
+    em.add_argument("--batch", type=int, default=20, help="emails between longer pauses")
+    em.add_argument("--batch-pause", type=float, default=180, help="seconds to rest between batches")
     em.add_argument("--max", type=int, help="send at most this many in this run")
     em.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
     a = ap.parse_args()
@@ -502,7 +543,14 @@ def main():
     if not check and not a.no_check:
         print("! opencv not installed, QR verification skipped (pip install opencv-python-headless)")
     if a.send:
-        sys.exit(send_all(a, people, check))
+        send_dir = pathlib.Path(a.out)
+        send_dir.mkdir(parents=True, exist_ok=True)
+        with open(send_dir / ".send.lock", "w") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                sys.exit("another ticket send is running from this folder; try again after it finishes")
+            sys.exit(send_all(a, people, check))
 
     out = pathlib.Path(a.out)
     failed = render(people, out, a.theme, a.bg, a.scale or 3, check)
